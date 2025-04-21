@@ -100,9 +100,9 @@ export default function OnboardingScreen() {
         </View>
         <TouchableOpacity
           className=""
-          // onPress={() => {
-          //   router.push("/sign-in");
-          // }}
+          onPress={() => {
+            router.push("/(root)/(no-tabs)/(auth)/sign-in");
+          }}
         >
           <Text className="text-[20px] text-gray-300">Skip</Text>
         </TouchableOpacity>
@@ -137,7 +137,7 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           onPress={() => {
             if (currentIndex === slides.length - 1) {
-              // router.replace("/sign-in");
+              router.replace("/(root)/(no-tabs)/(auth)/sign-in");
             } else {
               goToNextSlide();
             }

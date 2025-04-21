@@ -8,6 +8,7 @@ declare interface ButtonProps extends TouchableOpacityProps {
   IconLeft?: React.ComponentType<any>;
   IconRight?: React.ComponentType<any>;
   className?: string;
+  titleClassName?: string;
 }
 
 declare interface InputFieldProps extends TextInputProps {

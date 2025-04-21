@@ -41,6 +41,7 @@ const CustomButton = ({
   IconRight,
   className,
   loading,
+  titleClassName,
   ...props
 }: ButtonProps) => {
   return (
@@ -56,7 +57,7 @@ const CustomButton = ({
       <Text
         className={`text-lg font-rubik-bold ${getTextVariantStyle(
           textVariant
-        )}`}
+        )} ${titleClassName}`}
       >
         {title}
       </Text>

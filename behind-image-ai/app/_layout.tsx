@@ -1,4 +1,4 @@
-import { SplashScreen, Stack } from "expo-router";
+import { Redirect, SplashScreen, Stack } from "expo-router";
 import { ClerkProvider, ClerkLoaded } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { useFonts } from "expo-font";
@@ -13,7 +13,6 @@ export default function RootLayout() {
     "Rubik-Regular": require("../assets/fonts/Rubik-Regular.ttf"),
     "Rubik-SemiBold": require("../assets/fonts/Rubik-SemiBold.ttf"),
   });
-
   useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
