@@ -15,6 +15,7 @@ import CustomButton from "@/components/CustomButton";
 import { Link, router } from "expo-router";
 import { useSignUp } from "@clerk/clerk-expo";
 import { ReactNativeModal } from "react-native-modal";
+import { fetchAPI } from "@/lib/fetch";
 
 const SignUpScreen = () => {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -57,16 +58,19 @@ const SignUpScreen = () => {
       });
       if (completeSignUp.status === "complete") {
         //TODO: store the user's data on our database
+        await fetchAPI("/(api)/user", {
+          method: "POST",
+          body: JSON.stringify({
+            username: form.name,
+            email: form.email,
+            clerkId: completeSignUp.createdUserId,
+            provider: "credentials",
+          }),
+        });
         await setActive({ session: completeSignUp.createdSessionId });
         setVerification({
           ...verification,
           state: "success",
-        });
-      } else {
-        setVerification({
-          ...verification,
-          error: "Verification failed. Please try again.",
-          state: "failed",
         });
       }
     } catch (error: any) {

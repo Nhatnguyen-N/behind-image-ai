@@ -5,7 +5,7 @@ const Header = () => {
   return (
     <View
       className="w-full flex-row items-center px-4 py-3
-   bg-white shadow-2xl shadow-gray-500 rounded-2xl"
+   bg-white shadow-xl shadow-gray-500 rounded-2xl"
     >
       {/* Hamburger Icon */}
       <TouchableOpacity className="p-2">
