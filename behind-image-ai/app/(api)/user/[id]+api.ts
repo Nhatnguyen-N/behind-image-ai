@@ -15,7 +15,7 @@ export const GET = async (req: Request, { id }: Record<string, string>) => {
         savedGenerations: true
       }
     })
-    return Response.json({ data: user?.savedGenerations }, { status: 200 })
+    return Response.json({ data: user }, { status: 200 })
   } catch (error) {
     console.log(error);
     return Response.json(

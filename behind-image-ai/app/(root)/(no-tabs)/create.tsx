@@ -1,4 +1,17 @@
-import { Alert, Dimensions, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as MediaLibrary from "expo-media-library";
 import Slider from "@react-native-community/slider";
@@ -7,8 +20,13 @@ import * as FileSystem from "expo-file-system";
 import Canvas, { Image as CanvasImage } from "react-native-canvas";
 import ColorPicker from "react-native-wheel-color-picker";
 import { useImageSegmentation } from "@/hooks/useImageSegmentation";
-
-type TextPlayer = {
+import { Ionicons } from "@expo/vector-icons";
+import { Upload } from "lucide-react-native";
+import CustomButton from "@/components/CustomButton";
+import { useUser } from "@clerk/clerk-expo";
+import ReactNativeModal from "react-native-modal";
+import InputField from "@/components/CustomInput";
+type Textlayer = {
   id: string;
   text: string;
   x: number;
@@ -20,8 +38,12 @@ type TextPlayer = {
   rotation: number;
 };
 const CreateImage = () => {
+  const { user } = useUser();
+  const [isSaveModalVisible, setIsSaveModalVisible] = useState(false);
+  const [generationName, setGenerationName] = useState("");
+  const [saveLoading, setSaveLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
-  const [textLayers, setTextLayers] = useState<TextPlayer[]>([]);
+  const [textLayers, setTextLayers] = useState<Textlayer[]>([]);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const {
     processImage,
@@ -36,7 +58,7 @@ const CreateImage = () => {
 
   const canvasRef = useRef<Canvas>(null);
   const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
-  const canvasHeight = screenHeight * 0.4;
+  const canvasHeight = screenHeight;
   const textLayersRef = useRef(textLayers);
 
   useEffect(() => {
@@ -44,7 +66,7 @@ const CreateImage = () => {
   }, [textLayers]);
 
   const handleAddTextLayer = () => {
-    const newLayer: TextPlayer = {
+    const newLayer: Textlayer = {
       id: Math.random().toString(),
       text: "New Text Layer",
       x: 50,
@@ -58,7 +80,7 @@ const CreateImage = () => {
     setTextLayers([...textLayers, newLayer]);
     setSelectedLayerId(newLayer.id);
   };
-  const updateLayer = (id: string, updates: Partial<TextPlayer>) => {
+  const updateLayer = (id: string, updates: Partial<Textlayer>) => {
     setTextLayers((layers) =>
       layers.map((layer) =>
         layer.id === id ? { ...layer, ...updates } : layer
@@ -66,7 +88,7 @@ const CreateImage = () => {
     );
   };
   const drawOnCanvas = useCallback(
-    async (layers: TextPlayer[]) => {
+    async (layers: Textlayer[]) => {
       if (!canvasRef.current || !imageUrl || !processedImageUrl) return;
       try {
         const ctx = canvasRef.current.getContext("2d");
@@ -157,7 +179,7 @@ const CreateImage = () => {
     drawOnCanvas(textLayers); // Pass current text layers explicity
   }, [drawOnCanvas, processedImageUrl, textLayers]); // Keep textLayers in dependencies
 
-  const handleSliderChange = (value: number, property: keyof TextPlayer) => {
+  const handleSliderChange = (value: number, property: keyof Textlayer) => {
     if (!selectedLayerId) return;
     const updatedLayers = textLayers.map((layer) => {
       if (layer.id === selectedLayerId) {
@@ -233,6 +255,65 @@ const CreateImage = () => {
       );
     }
   };
+  // Add these handler functions
+  const handleSavePress = async () => {
+    if (!canvasRef.current)
+      return Alert.alert(
+        "Please load the image",
+        "Please process the image first."
+      );
+    try {
+      const dataUrl = await canvasRef.current.toDataURL();
+      const base64Data = dataUrl.split(",")[1];
+      const filename = `temp-image-${Date.now()}.png`;
+      const fileUri = FileSystem.documentDirectory + filename;
+
+      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      setCanvasImageUri(fileUri); // Save file URI instead of data URL
+      setIsSaveModalVisible(true);
+    } catch (error) {
+      console.error("Error capturing image:", error);
+      Alert.alert("Error", "Failed to prepare image for saving");
+    }
+  };
+  const handleSaveGeneration = async () => {
+    if (!generationName.trim() || !canvasImageUri || !user) {
+      Alert.alert("Error", "Please fill all fields");
+      return;
+    }
+    try {
+      // Convert file URI to base64
+      setSaveLoading(true);
+      const base64 = await FileSystem.readAsStringAsync(canvasImageUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const response = await fetch("/(api)/save-generation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageData: base64,
+          name: generationName,
+          clerkId: user.id,
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to save generation");
+      Alert.alert("Success", "Generation saved successfully");
+      setIsSaveModalVisible(false);
+      setGenerationName("");
+      // Delete temp file after success
+      await FileSystem.deleteAsync(canvasImageUri);
+      setSaveLoading(false);
+    } catch (error) {
+      console.error("Save error:", error);
+      Alert.alert("Error", "Failed to save generationn");
+      setSaveLoading(false);
+    }
+  };
   const selectedLayer = textLayers.find(
     (layer) => layer.id === selectedLayerId
   );
@@ -248,9 +329,287 @@ const CreateImage = () => {
     });
   };
   return (
-    <View>
-      <Text>Create</Text>
-    </View>
+    <SafeAreaView className="flex-1 bg-white">
+      <ScrollView contentContainerClassName="flex-grow pb-24" className="">
+        {/* Canvas section */}
+        <View
+          className="justify-center items-center border-b border-gray-400"
+          style={{ height: canvasHeight }}
+        >
+          {isProcessing ? (
+            <View
+              className="absolute inset-0 justify-center
+          items-center bg-white bg-opacity-90"
+            >
+              <ActivityIndicator size={"large"} color={"#7e60bf"} />
+              <Text className="mt-2 text-gray-700 text-base">
+                Processing Image ...
+              </Text>
+            </View>
+          ) : processedImageUrl ? (
+            <>
+              <Canvas
+                ref={canvasRef}
+                style={{
+                  width: screenWidth,
+                  height: screenHeight,
+                  backgroundColor: "#f3f4f6",
+                }}
+              />
+              <TouchableOpacity
+                className="absolute top-3 right-3
+            text-primary-100 p-2 bg-white/80 rounded-full"
+                onPress={toggleFullScreen}
+              >
+                <Ionicons name="expand" size={24} color={"#7e60bf"} />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              className="bg-primary py-3 px-6
+            rounded-lg shadow-md flex-row gap-[5px]"
+              onPress={handleImageUpLoad}
+              disabled={isProcessing}
+            >
+              <Text className="text-white text-lg font-semibold">
+                Upload Image
+              </Text>
+              <Upload className="size-3" color={"white"} />
+            </TouchableOpacity>
+          )}
+        </View>
+        <Modal visible={isFullScreen} transparent={false} animationType="slide">
+          <View
+            className="flex-1 justify-center items-center
+          bg-black"
+          >
+            <TouchableOpacity
+              className="absolute top-10 right-5 p-2
+            bg-white/80 rounded-full z-10"
+              onPress={toggleFullScreen}
+            >
+              <Ionicons name="exit" size={24} color={"#7e60bf"} />
+            </TouchableOpacity>
+            {canvasImageUri ? (
+              <Image
+                source={{ uri: canvasImageUri }}
+                className="w-full h-full"
+                resizeMode="contain"
+              />
+            ) : (
+              <Text className="text-white text-base">
+                No canvas image available
+              </Text>
+            )}
+          </View>
+        </Modal>
+        {/* Controls Section */}
+        <View className="p-6">
+          {processedImageUrl && (
+            <>
+              <View className="flex-row justify-between items-center mb-4">
+                <Text className="text-xl font-semibold text-gray-900">
+                  Text Layers
+                </Text>
+                <TouchableOpacity
+                  className="bg-primary-200 py-2 px-3 rounded"
+                  onPress={handleAddTextLayer}
+                >
+                  <Text className="text-white text-sm font-medium">
+                    Add Text Layer +
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                horizontal
+                className="mb-4"
+                showsHorizontalScrollIndicator={false}
+              >
+                {textLayers.map((layer) => (
+                  <TouchableOpacity
+                    className={`p-3 mx-1 rounded-lg relative ${
+                      selectedLayerId === layer.id
+                        ? "bg-primary-100 text-white"
+                        : "bg-gray-200"
+                    }`}
+                    key={layer.id}
+                    onPress={() => setSelectedLayerId(layer.id)}
+                    style={{ minWidth: 100 }}
+                  >
+                    {/* Delete Button */}
+                    <TouchableOpacity
+                      className="absolute -top-0 -right-0 p-[1px] bg-red-500 rounded-full z-10"
+                      onPress={() => handleDeleteLayer(layer.id)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name="close" size={16} color={"white"} />
+                    </TouchableOpacity>
+                    <Text
+                      className={`text-sm ${
+                        selectedLayerId === layer.id
+                          ? "text-white"
+                          : "text-black"
+                      }`}
+                      numberOfLines={1}
+                    >
+                      {layer.text || "New Layer"}
+                    </Text>
+                    <Text
+                      className={`text-xs ${
+                        selectedLayerId === layer.id
+                          ? "text-white"
+                          : "text-gray-400"
+                      } mt-1`}
+                    >
+                      Layer {textLayers.indexOf(layer) + 1}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {selectedLayer && (
+                <View className="space-y-4 bg-gray-100 p-4 rounded-lg">
+                  <Text className="text-base font-semibold text-gray-900">
+                    Editing: "{selectedLayer.text}"
+                  </Text>
+                  {/* Text Input for Layer Content */}
+                  <TextInput
+                    className="border border-gray-300 p-2 rounded bg-white"
+                    value={selectedLayer.text}
+                    onChangeText={(text) =>
+                      updateLayer(selectedLayer.id, { text })
+                    }
+                    placeholder="Enter text here"
+                    placeholderTextColor={"gray"}
+                    selectionColor={"#7e60bf"}
+                  />
+                  {/* Sliders and Controls */}
+                  {[
+                    {
+                      prop: "x",
+                      label: "X Position",
+                      min: 0,
+                      max: screenWidth,
+                    },
+                    {
+                      prop: "y",
+                      label: "Y Position",
+                      min: 0,
+                      max: canvasHeight,
+                    },
+                    { prop: "fontSize", label: "Font Size", min: 12, max: 100 },
+                    {
+                      prop: "fontWeight",
+                      label: "Fonr Weight",
+                      min: 100,
+                      max: 900,
+                      step: 100,
+                    },
+                    {
+                      prop: "opacity",
+                      label: "Opacity",
+                      min: 0,
+                      max: 1,
+                      step: 0.1,
+                    },
+                    { prop: "rotation", label: "Rotation", min: 0, max: 360 },
+                  ].map(({ prop, label, min, max, step = 1 }) => (
+                    <View key={prop} className="space-y-2">
+                      <Text className="text-gray-700 font-medium">
+                        {label}:{selectedLayer[prop as keyof Textlayer]}
+                        {prop === "rotation" && "°"}
+                      </Text>
+                      <Slider
+                        minimumValue={min}
+                        maximumValue={max}
+                        step={step}
+                        value={selectedLayer[prop as keyof Textlayer] as number}
+                        onValueChange={(value) =>
+                          handleSliderChange(value, prop as keyof Textlayer)
+                        }
+                        minimumTrackTintColor="#7e60bf"
+                        maximumTrackTintColor="#e0e0e0"
+                      />
+                    </View>
+                  ))}
+                  <View>
+                    <Text className="text-gray-700">Text Color</Text>
+                    <ColorPicker
+                      color={selectedLayer.color}
+                      onColorChangeComplete={(color) =>
+                        updateLayer(selectedLayer.id, { color })
+                      }
+                      thumbSize={30}
+                      sliderSize={30}
+                      noSnap
+                      row={false}
+                      swatches={false}
+                    />
+                  </View>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      </ScrollView>
+      <View
+        className="absolute bottom-0 left-0 right-0 bg-white
+       border-t border-gray-400 px-2 py-3"
+      >
+        <View className="flex-row gap-2">
+          <CustomButton
+            disabled={isProcessing}
+            textVariant="default"
+            title="Download"
+            onPress={handleDownload}
+            IconLeft={() => (
+              <Ionicons name="download-outline" size={24} color={"white"} />
+            )}
+            className="flex-1 bg-primary-200"
+          />
+          <CustomButton
+            disabled={isProcessing}
+            textVariant="default"
+            title="Save"
+            onPress={handleSavePress}
+            IconLeft={() => (
+              <Ionicons name="cloud-upload-outline" size={24} color={"white"} />
+            )}
+            className="flex-1 bg-primary-100"
+          />
+        </View>
+      </View>
+      {/* Add this modal component inside the main return */}
+      <ReactNativeModal isVisible={isSaveModalVisible}>
+        <View className="bg-white px-7 py-9 rounded-2xl min-h-[300px]">
+          <Text className="font-rubik text-3xl text-center mb-4">
+            Save Generarion
+          </Text>
+          <InputField
+            className="border border-gray-300 p-2 rounded mb-4"
+            placeholder="Enter generation name"
+            placeholderTextColor={"gray"}
+            value={generationName}
+            onChangeText={setGenerationName}
+          />
+          <CustomButton
+            title="Submit"
+            onPress={handleSaveGeneration}
+            className="bg-primary-200"
+            disabled={saveLoading}
+            loading={saveLoading}
+          />
+          {!saveLoading && (
+            <CustomButton
+              title="Cancel"
+              onPress={() => setIsSaveModalVisible(false)}
+              className="mt-2 bg-gray-300 disabled:bg-gray-200"
+              disabled={saveLoading}
+            />
+          )}
+        </View>
+      </ReactNativeModal>
+    </SafeAreaView>
   );
 };
 

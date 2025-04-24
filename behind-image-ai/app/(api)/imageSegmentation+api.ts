@@ -9,10 +9,10 @@ export const POST = async (req: Request) => {
     fromData.append("size", 'auto')
     fromData.append("image_file", blob, "image.jpg")
     console.log("Sending request to removeBg API ...");
-    const response = await fetch("https://api/remove.bg/v1.0/removebg", {
+    const response = await fetch("https://api.remove.bg/v1.0/removebg", {
       method: 'POST',
       headers: {
-        "X-Api-Key": process.env.REMBG_API_KEY as string,
+        "X-Api-Key": "iM5E7Bic9NtzuT4WeDmHUhYi",
       },
       body: fromData
     });

@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -16,12 +17,11 @@ import CustomState from "@/components/CustomState";
 import { useFetch } from "@/lib/fetch";
 import { SavedGenerations } from "@prisma/client";
 import { router } from "expo-router";
+import { ArrowRight } from "lucide-react-native";
 
 const Dashboard = () => {
   const { user } = useUser();
-  const { data, loading, error } = useFetch<SavedGenerations[]>(
-    `/(api)/user/${user?.id}`
-  );
+  const { data, loading, error } = useFetch<any>(`/(api)/user/${user?.id}`);
   if (loading)
     return (
       <SafeAreaView className=" flex justify-between items-center w-full">
@@ -48,15 +48,55 @@ const Dashboard = () => {
           />
         </View>
         <View className="mx-5 my-3">
-          <Text className="font-rubik text-xl capitalize">
-            Hello,
-            <Text className="font-rubik-bold ">{user?.username}</Text>! 👋
+          <Text className="font-rubik text-2xl capitalize">
+            Hello,{" "}
+            <Text className="font-rubik-bold text-primary-100">
+              {user?.username}{" "}
+            </Text>
+            ! 👋
           </Text>
+          <View>
+            {data?.plan === "FREE" ? (
+              <TouchableOpacity
+                onPress={() => router.push("/(root)/(no-tabs)/subscribe")}
+                className="px-safe-offset-2 w-[50%] flex flex-row items-center justify-between bg-yellow-500 rounded-lg"
+              >
+                <View className="flex flex-row">
+                  <Image
+                    source={require("@/assets/images/diamond.png")}
+                    resizeMode="contain"
+                    className="w-[20px] h-[20px]"
+                  />
+                </View>
+                <Text className="text-white">Be a Pro Member</Text>
+                <View>
+                  <ArrowRight color={"white"} size={15} />
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => {}}
+                className="w-[35%] flex flex-row justify-center bg-green-500 rounded-lg"
+              >
+                <View className="flex flex-row gap-x-3 items-center">
+                  <Image
+                    source={require("@/assets/images/diamond.png")}
+                    resizeMode="contain"
+                    className="w-[20px] h-[20px]"
+                  />
+                  <Text className="text-white">Pro Member</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
         <View className="mt-1 mx-5 flex flex-row items-center justify-between">
           <View>
             <Text className="font-rubik text-xl capitalize ">
-              Saved Generations <Text className="font-rubik-bold">(0)</Text>
+              Saved Generations{" "}
+              <Text className="font-bold">
+                ({data?.savedGenerations?.length})
+              </Text>
             </Text>
           </View>
           <TouchableOpacity
@@ -69,8 +109,8 @@ const Dashboard = () => {
             </Text>
           </TouchableOpacity>
         </View>
-        <View>
-          {data && data?.length > 0 ? (
+        <View className="mx-2">
+          {data?.savedGenerations && data?.savedGenerations?.length > 0 ? (
             <View></View>
           ) : (
             <CustomState
