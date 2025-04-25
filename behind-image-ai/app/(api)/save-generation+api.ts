@@ -11,8 +11,8 @@ cloudinary.config({
 
 export const POST = async (req: Request) => {
   try {
-    const { imageData, name, clerkId } = await req.json();
-    if (!imageData || !name || !clerkId) {
+    const { image, name, clerkId } = await req.json();
+    if (!image || !name || !clerkId) {
       return Response.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -20,7 +20,7 @@ export const POST = async (req: Request) => {
     }
 
     // Convert base64 to buffer
-    const base64Data = imageData.split(";base64,").pop();
+    const base64Data = image.split(";base64,").pop();
     const imageBuffer = Buffer.from(base64Data, "base64");
     //Find user by clerkId
     const user = await prisma.user.findUnique({
@@ -32,7 +32,7 @@ export const POST = async (req: Request) => {
     if (!user) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
-    if (user?.plan === "FREE" && user?.savedGenerations.length == 3) {
+    if (user?.plan === "FREE" && user?.savedGenerations.length === 3) {
       router.push("/(root)/(no-tabs)/subscribe");
       return;
     }

@@ -4,7 +4,6 @@ import {
   Dimensions,
   Image,
   Modal,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -26,6 +25,7 @@ import CustomButton from "@/components/CustomButton";
 import { useUser } from "@clerk/clerk-expo";
 import ReactNativeModal from "react-native-modal";
 import InputField from "@/components/CustomInput";
+import { SafeAreaView } from "react-native-safe-area-context";
 type Textlayer = {
   id: string;
   text: string;
@@ -51,6 +51,7 @@ const CreateImage = () => {
     cleanup,
     isProcessing,
     creditsLeft,
+    plan,
   } = useImageSegmentation();
   const [remainingCredits, setRemainingCredits] = useState(creditsLeft);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -202,7 +203,7 @@ const CreateImage = () => {
         await processImage(result.assets[0].uri)
           .then((res) => {
             setImageUrl(result.assets[0].uri);
-            Alert.alert("Image Processed Successfully");
+            // Alert.alert("Image Processed Successfully");
             setRemainingCredits(res?.creditsLeft);
           })
           .catch((err) => {
@@ -296,12 +297,15 @@ const CreateImage = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          imageData: base64,
+          image: base64,
           name: generationName,
           clerkId: user.id,
         }),
       });
-      if (!response.ok) throw new Error("Failed to save generation");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Failed to save generation");
+      }
       Alert.alert("Success", "Generation saved successfully");
       setIsSaveModalVisible(false);
       setGenerationName("");

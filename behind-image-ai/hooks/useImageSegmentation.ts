@@ -1,12 +1,21 @@
 import * as FileSystem from 'expo-file-system';
 import { useUser } from "@clerk/clerk-expo"
 import { useState } from 'react';
+import { useFetch } from '@/lib/fetch';
+import { router } from 'expo-router';
 export function useImageSegmentation() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedImageUrl, setProcessedImageUrl] = useState<string | null>()
   const [creditsLeft, setCreditsLeft] = useState(0);
+  const [plan, setPlan] = useState("");
   const { user } = useUser()
+  const { data, loading, error } = useFetch<any>(`/(api)/user/${user?.id}`);
   const processImage = async (imageUrl: string) => {
+    if (data?.plan === "FREE" && data?.creditsLeft === 0) {
+      router.push("/(root)/(no-tabs)/subscribe");
+      return;
+    }
+
     const base64Image = await FileSystem.readAsStringAsync(
       imageUrl, {
       encoding: FileSystem.EncodingType.Base64,
@@ -31,6 +40,8 @@ export function useImageSegmentation() {
       }
       const result = await response.json();
       const creditsLeft = result.creditsLeft;
+      const plan = result.plan;
+      setPlan(plan);
       setCreditsLeft(creditsLeft)
       const base64Data = result.data
       const uri = `${FileSystem.documentDirectory}processed-${Date.now()}.png`;
@@ -53,6 +64,6 @@ export function useImageSegmentation() {
     }
   }
   return {
-    processImage, processedImageUrl, isProcessing, cleanup, creditsLeft
+    processImage, processedImageUrl, isProcessing, cleanup, creditsLeft, plan
   }
 }

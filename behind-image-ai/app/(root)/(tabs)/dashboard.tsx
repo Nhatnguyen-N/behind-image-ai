@@ -1,7 +1,6 @@
 import {
   ActivityIndicator,
   Image,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,6 +17,7 @@ import { useFetch } from "@/lib/fetch";
 import { SavedGenerations } from "@prisma/client";
 import { router } from "expo-router";
 import { ArrowRight } from "lucide-react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Dashboard = () => {
   const { user } = useUser();
@@ -111,7 +111,9 @@ const Dashboard = () => {
         </View>
         <View className="mx-2">
           {data?.savedGenerations && data?.savedGenerations?.length > 0 ? (
-            <View></View>
+            <View>
+              <Text>Generation</Text>
+            </View>
           ) : (
             <CustomState
               title="No Saved Generations."

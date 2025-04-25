@@ -3,7 +3,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import InputField from "@/components/CustomInput";
 import CustomButton from "@/components/CustomButton";
 import { Link, Redirect, router } from "expo-router";
 import { useSignIn, useUser } from "@clerk/clerk-expo";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const SignInScreen = () => {
   const { signIn, setActive, isLoaded } = useSignIn();

@@ -3,7 +3,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +15,7 @@ import { Link, router } from "expo-router";
 import { useSignUp } from "@clerk/clerk-expo";
 import { ReactNativeModal } from "react-native-modal";
 import { fetchAPI } from "@/lib/fetch";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const SignUpScreen = () => {
   const { isLoaded, signUp, setActive } = useSignUp();
@@ -226,7 +226,7 @@ const SignUpScreen = () => {
                 <CustomButton
                   title="Browse Dashboard"
                   onPress={() => {
-                    router.push("/(root)/(tabs)/dashboard");
+                    router.push("/(root)/(no-tabs)/subscribe");
                     setShowSuccessModal(false);
                   }}
                   className="mt-5 bg-primary-200"
