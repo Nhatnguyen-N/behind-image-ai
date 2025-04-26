@@ -7,33 +7,49 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import InputField from "@/components/CustomInput";
 import Header from "@/components/header";
-import { useUser } from "@clerk/clerk-expo";
+import { useAuth, useUser } from "@clerk/clerk-expo";
 import CustomButton from "@/components/CustomButton";
 import CustomState from "@/components/CustomState";
 import { useFetch } from "@/lib/fetch";
 import { SavedGenerations } from "@prisma/client";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { ArrowRight } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import CustomLoader from "@/components/CustomLoader";
+import SavedGenerationCard from "@/components/SavedGenerationCard";
 
 const Dashboard = () => {
   const { user } = useUser();
-  const { data, loading, error } = useFetch<any>(`/(api)/user/${user?.id}`);
-  if (loading)
-    return (
-      <SafeAreaView className=" flex justify-between items-center w-full">
-        <ActivityIndicator size={"small"} color={"#000"} />
-      </SafeAreaView>
+  const { isSignedIn } = useAuth();
+  const { data, loading, error, refetch } = useFetch<any>(
+    `/(api)/user/${user?.id}`
+  );
+  const [savedGenerations, setSavedGenerations] = useState([]);
+  useEffect(() => {
+    if (data?.savedGenerations) {
+      setSavedGenerations(data.savedGenerations);
+    }
+  }, [data]);
+  const handleDeleteGeneration = (generationId: string) => {
+    setSavedGenerations((prev) =>
+      prev.filter((gen: any) => gen.id !== generationId)
     );
+    refetch();
+  };
+
+  if (loading) return <CustomLoader loading={loading} />;
   if (error)
     return (
       <SafeAreaView className="flex justify-between items-center w-full">
         <Text>Error:{error}</Text>
       </SafeAreaView>
     );
+  if (!isSignedIn) {
+    return <Redirect href={"/(root)/(no-tabs)/(auth)/sign-in"} />;
+  }
   return (
     <SafeAreaView className="w-full h-full flex-1 bg-white">
       <ScrollView>
@@ -111,9 +127,15 @@ const Dashboard = () => {
         </View>
         <View className="mx-2">
           {data?.savedGenerations && data?.savedGenerations?.length > 0 ? (
-            <View>
-              <Text>Generation</Text>
-            </View>
+            savedGenerations.map((generation: any) => (
+              <SavedGenerationCard
+                key={generation.id}
+                id={generation.id}
+                name={generation.name}
+                imageUrl={generation.imageUrl}
+                onDelete={handleDeleteGeneration}
+              />
+            ))
           ) : (
             <CustomState
               title="No Saved Generations."

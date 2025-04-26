@@ -420,7 +420,7 @@ const CreateImage = () => {
                   onPress={handleAddTextLayer}
                 >
                   <Text className="text-white text-sm font-medium">
-                    Add Text Layer +
+                    Load the image & Add Text Layer +
                   </Text>
                 </TouchableOpacity>
               </View>

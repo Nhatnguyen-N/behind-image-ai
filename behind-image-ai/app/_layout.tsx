@@ -1,9 +1,12 @@
 import { Redirect, SplashScreen, Stack } from "expo-router";
-import { ClerkProvider, ClerkLoaded } from "@clerk/clerk-expo";
+import { ClerkProvider, ClerkLoaded, ClerkLoading } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { useFonts } from "expo-font";
 import "./globals.css";
 import { useEffect } from "react";
+import CustomLoader from "@/components/CustomLoader";
+import { StripeProvider } from "@stripe/stripe-react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     "Rubik-Bold": require("../assets/fonts/Rubik-Bold.ttf"),
@@ -22,10 +25,20 @@ export default function RootLayout() {
     return null;
   }
   return (
-    <ClerkProvider tokenCache={tokenCache}>
-      <ClerkLoaded>
-        <Stack screenOptions={{ headerShown: false }} />
-      </ClerkLoaded>
-    </ClerkProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StripeProvider
+        publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY!}
+      >
+        <ClerkProvider tokenCache={tokenCache}>
+          <ClerkLoaded>
+            <Stack screenOptions={{ headerShown: false }} />
+          </ClerkLoaded>
+          <ClerkLoading>
+            {/* Optional: Loading indicator or splash screen alternative */}
+            <CustomLoader loading={true} />
+          </ClerkLoading>
+        </ClerkProvider>
+      </StripeProvider>
+    </GestureHandlerRootView>
   );
 }
