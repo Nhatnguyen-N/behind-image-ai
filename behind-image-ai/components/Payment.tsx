@@ -6,6 +6,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { fetchAPI } from "@/lib/fetch";
 import ReactNativeModal from "react-native-modal";
 import { router } from "expo-router";
+import CustomLoader from "./CustomLoader";
 
 const Payment = ({
   fullName,
@@ -17,88 +18,143 @@ const Payment = ({
   amount: string;
 }) => {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const [loading, setLoading] = useState(false);
   const { userId } = useAuth();
   const [success, setSuccess] = useState<boolean>(false);
-  const initializePaymentSheet = async () => {
-    const { error } = await initPaymentSheet({
-      merchantDisplayName: "Example, Inc.",
-      intentConfiguration: {
-        mode: {
-          amount: parseInt(amount) * 100,
-          currencyCode: "usd",
-        },
-        confirmHandler: async (
-          paymentMethod,
-          shouldSavePaymentMethod,
-          intentCreationCallback
-        ) => {
-          const { paymentIntent, customer } = await fetchAPI(
-            "/(api)/(stripe)/create-stripe",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                name: fullName || email?.split("@")[0],
-                email: email,
-                amount: amount,
-              }),
-            }
-          );
-          console.log("payment intent", paymentIntent.client_secret);
-          if (paymentIntent.client_secret) {
-            const { result } = await fetchAPI("/(api)/(stripe)/pay", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                payment_method_id: paymentMethod.id,
-                payment_intent_id: paymentIntent.id,
-                customer_id: customer,
-                client_secret: paymentIntent.client_secret,
-              }),
-            });
-            if (result.client_secret) {
-              await fetchAPI("/(api)/subscription/create", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  user_id: userId,
-                  showAds: false,
-                  plan: "PRO",
-                }),
-              });
-              intentCreationCallback({
-                clientSecret: result.client_secret,
-              });
-            }
-          }
-        },
+  // const initializePaymentSheet = async () => {
+  //   const { error } = await initPaymentSheet({
+  //     merchantDisplayName: "Example, Inc.",
+  //     intentConfiguration: {
+  //       mode: {
+  //         amount: parseInt(amount) * 100,
+  //         currencyCode: "usd",
+  //       },
+  //       confirmHandler: async (
+  //         paymentMethod,
+  //         shouldSavePaymentMethod,
+  //         intentCreationCallback
+  //       ) => {
+  //         const { paymentIntent, customer } = await fetchAPI(
+  //           "/(api)/(stripe)/create-stripe",
+  //           {
+  //             method: "POST",
+  //             headers: {
+  //               "Content-Type": "application/json",
+  //             },
+  //             body: JSON.stringify({
+  //               name: fullName || email?.split("@")[0],
+  //               email: email,
+  //               amount: amount,
+  //             }),
+  //           }
+  //         );
+  //         console.log("payment intent", paymentIntent.client_secret);
+  //         if (paymentIntent.client_secret) {
+  //           const { result } = await fetchAPI("/(api)/(stripe)/pay", {
+  //             method: "POST",
+  //             headers: {
+  //               "Content-Type": "application/json",
+  //             },
+  //             body: JSON.stringify({
+  //               payment_method_id: paymentMethod.id,
+  //               payment_intent_id: paymentIntent.id,
+  //               customer_id: customer,
+  //               client_secret: paymentIntent.client_secret,
+  //             }),
+  //           });
+  //           if (result.client_secret) {
+  //             await fetchAPI("/(api)/subscription/create", {
+  //               method: "POST",
+  //               headers: {
+  //                 "Content-Type": "application/json",
+  //               },
+  //               body: JSON.stringify({
+  //                 user_id: userId,
+  //                 showAds: false,
+  //                 plan: "PRO",
+  //               }),
+  //             });
+  //             intentCreationCallback({
+  //               clientSecret: result.client_secret,
+  //             });
+  //           }
+  //         }
+  //       },
+  //     },
+  //     returnURL: "myapp://dashboard",
+  //   });
+  //   if (!error) {
+  //   }
+  // };
+  const fetchPaymentSheetParams = async () => {
+    const response = await fetch(`/(api)/(stripe)/payment-sheet`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      returnURL: "myapp://dashboard",
+      body: JSON.stringify({ amount: amount }),
+    });
+    const { paymentIntent, ephemeralKey, cusotmer } = await response.json();
+    return {
+      paymentIntent,
+      ephemeralKey,
+      cusotmer,
+    };
+  };
+  const initializePaymentSheet = async () => {
+    const { paymentIntent, ephemeralKey, cusotmer } =
+      await fetchPaymentSheetParams();
+    const { error } = await initPaymentSheet({
+      merchantDisplayName: "Nhatt",
+      customerId: cusotmer,
+      customerEphemeralKeySecret: ephemeralKey,
+      paymentIntentClientSecret: paymentIntent,
+      // Set `allowsDelayedPaymentMethods` to true if your business can handle payment
+      // methods that complete payment after a delay, like SEPA Debit and Sofort.
+      allowsDelayedPaymentMethods: true,
+      defaultBillingDetails: {
+        name: "Jane Doe",
+      },
     });
     if (!error) {
+      setLoading(true);
     }
   };
+
   const openPaymentSheet = async () => {
-    await initializePaymentSheet();
+    // await initializePaymentSheet();
     const { error } = await presentPaymentSheet();
     if (error) {
       Alert.alert(`Error code: ${error.code}`, error.message);
     } else {
       setSuccess(true);
+      await fetchAPI("/(api)/subscription/create", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: userId,
+          showAds: false,
+          plan: "PRO",
+        }),
+      })
+        .then(() => {
+          setSuccess(true);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
   };
+  if (loading) return <CustomLoader loading={loading} />;
   return (
     <View>
       <CustomButton
         title="Subscribe Now! - $10/month"
         className="my-[10px] bg-primary-200"
-        onPress={openPaymentSheet}
+        onPress={async () => {
+          await initializePaymentSheet().then(async () => {
+            await openPaymentSheet();
+          });
+        }}
       />
       <ReactNativeModal
         isVisible={success}
